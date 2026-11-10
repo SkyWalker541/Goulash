@@ -507,18 +507,24 @@ class SettingsViewModel @Inject constructor(
             // applyChaosTheme refreshes the open list itself, so the row's value and every
             // colour row below it update in the one pass.
             "chaos_theme" -> applyChaosTheme(ChaosTheme.step(ChaosTheme.fromId(settings.chaosTheme), direction))
-            "chaos_shelf" -> {
-                val entries = listOf("off", "names", "cards")
-                val cur = entries.indexOf(settings.chaosShelf).coerceAtLeast(0)
-                settings.chaosShelf = entries[((cur + direction) % entries.size + entries.size) % entries.size]
-            }
             "chaos_pixel_speed" -> settings.chaosPixelSpeed =
                 PixelSpeed.fromId(settings.chaosPixelSpeed).let { PixelSpeed.entries[(it.ordinal + direction + PixelSpeed.entries.size) % PixelSpeed.entries.size] }.id
             "swap_play_resume" -> settings.swapPlayResume = !settings.swapPlayResume
             "content_mode" -> {
+                // Content Mode picks how the library is browsed, and a ChaOS shelf IS a way
+                // of browsing it, so the two themes are values here rather than a second
+                // switch somewhere else. Choosing one also makes sure a colour scheme is
+                // set: a shelf drawn in Cannoli's plain palette would not be the theme.
                 val entries = ContentMode.entries
                 val cur = entries.indexOf(settings.contentMode).coerceAtLeast(0)
-                settings.contentMode = entries[((cur + direction) % entries.size + entries.size) % entries.size]
+                val next = entries[((cur + direction) % entries.size + entries.size) % entries.size]
+                settings.contentMode = next
+                if (next == ContentMode.PIXEL_NAMES || next == ContentMode.PIXEL_CARDS) {
+                    if (settings.chaosTheme.isEmpty()) {
+                        settings.chaosTheme = ChaosTheme.ORANGE.id
+                        applyChaosTheme(ChaosTheme.ORANGE)
+                    }
+                }
             }
             "fgh_collection" -> {
                 val ids = fghCollections().map { it.id }
@@ -714,12 +720,6 @@ class SettingsViewModel @Inject constructor(
     }
 
     /** The shelf row's words for a stored value. */
-    private fun shelfLabel(id: String): String = when (id) {
-        "names" -> context.getString(R.string.chaos_shelf_names)
-        "cards" -> context.getString(R.string.chaos_shelf_cards)
-        else -> context.getString(R.string.chaos_shelf_off)
-    }
-
     /** The theme the colors currently came from, or null when they were never set from one. */
     fun currentChaosTheme(): ChaosTheme? =
         settings.chaosTheme.takeIf { it.isNotEmpty() }?.let { ChaosTheme.fromId(it) }
@@ -845,6 +845,7 @@ class SettingsViewModel @Inject constructor(
             }
         }
         "display" -> buildList {
+            add(SettingsItem("chaos_look", R.string.setting_chaos_look, valueText = ChaosTheme.fromId(settings.chaosTheme).label, isEditable = true))
             add(SettingsItem("colors", R.string.setting_colors, isEditable = true))
             add(SettingsItem("bg_image", R.string.setting_bg_image, valueText = settings.backgroundImagePath?.let { java.io.File(it).name }, valueRes = if (settings.backgroundImagePath == null) R.string.value_none else null))
             if (settings.backgroundImagePath != null) {
@@ -877,6 +878,8 @@ class SettingsViewModel @Inject constructor(
                 ContentMode.PLATFORMS -> R.string.value_platforms
                 ContentMode.COLLECTIONS -> R.string.value_collections
                 ContentMode.FIVE_GAME_HANDHELD -> R.string.value_five_game_handheld
+                ContentMode.PIXEL_NAMES -> R.string.value_pixel_names
+                ContentMode.PIXEL_CARDS -> R.string.value_pixel_cards
             }
             add(SettingsItem("content_mode", R.string.setting_content_mode, valueRes = contentModeRes))
             if (settings.contentMode == ContentMode.FIVE_GAME_HANDHELD) {
@@ -924,10 +927,6 @@ class SettingsViewModel @Inject constructor(
             }
         }
         "colors" -> listOf(
-            // The ChaOS look is its own screen rather than three more rows at the top of a
-            // list of hex values: a theme is not a colour, and putting it here as one made
-            // Colors the only place to change the shelf's whole appearance.
-            SettingsItem("chaos_look", R.string.setting_chaos_look, valueText = ChaosTheme.fromId(settings.chaosTheme).label, isEditable = true),
             SettingsItem("color_background", R.string.setting_color_background, valueText = settings.colorBackground.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorBackground)),
             SettingsItem("color_text", R.string.setting_color_text, valueText = settings.colorText.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorText)),
             SettingsItem("color_status_bar", R.string.setting_color_status_bar, valueText = settings.colorStatusBar.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorStatusBar)),
@@ -937,7 +936,6 @@ class SettingsViewModel @Inject constructor(
         )
         "chaos_look" -> listOf(
             SettingsItem("chaos_theme", R.string.setting_chaos_theme, valueText = ChaosTheme.fromId(settings.chaosTheme).label, isEditable = true),
-            SettingsItem("chaos_shelf", R.string.setting_chaos_shelf, valueText = shelfLabel(settings.chaosShelf), isEditable = true),
             SettingsItem("chaos_pixel_speed", R.string.setting_chaos_pixel_speed, valueText = PixelSpeed.fromId(settings.chaosPixelSpeed).label, isEditable = true),
             // A note, not a row: it says what the theme does and nothing acts on it.
             SettingsItem("chaos_hint", R.string.setting_chaos_hint, valueText = context.getString(R.string.chaos_hint_body), isEditable = false)

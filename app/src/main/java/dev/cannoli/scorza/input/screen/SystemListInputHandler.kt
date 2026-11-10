@@ -60,13 +60,13 @@ class SystemListInputHandler @Inject constructor(
         // On a ChaOS shelf the consoles run left and right, so left and right move between
         // them rather than jumping a page: a row you slide cannot also be paged through the
         // other way, or the press means two things depending on which screen you are on.
-        if (settings.chaosShelf == "shelf") systemListViewModel.moveSelection(-1)
+        if (settings.contentMode.isPixelShelf) systemListViewModel.moveSelection(-1)
         else pageJump(-1)
     }
 
     override fun onRight() {
         if (systemListViewModel.isReorderMode()) return
-        if (settings.chaosShelf == "shelf") systemListViewModel.moveSelection(1)
+        if (settings.contentMode.isPixelShelf) systemListViewModel.moveSelection(1)
         else pageJump(1)
     }
 

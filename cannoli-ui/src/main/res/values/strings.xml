@@ -420,6 +420,8 @@
     <string name="value_hide">Hide</string>
     <string name="value_none">None</string>
     <string name="value_selected">Selected</string>
+    <string name="value_pixel_names">Pixel Names</string>
+    <string name="value_pixel_cards">Pixel Cards</string>
     <string name="value_cannoli_root">Cannoli Root</string>
     <!-- Content Mode value: the default platform view. -->
     <string name="value_platforms">Default</string>

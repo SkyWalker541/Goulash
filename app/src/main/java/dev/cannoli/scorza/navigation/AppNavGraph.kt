@@ -611,9 +611,11 @@ fun AppNavGraph(
                     artScale = appSettings.artScale,
                     chaosTheme = appSettings.chaosTheme,
                     chaosPixelSpeed = chaosPixelSpeed,
-                    chaosShelf = when (appSettings.chaosShelfId) {
-                        "names" -> dev.cannoli.scorza.ui.screens.ChaosShelf.PIXEL_NAMES
-                        "cards" -> dev.cannoli.scorza.ui.screens.ChaosShelf.PIXEL_CARDS
+                    // Content Mode is the switch: a ChaOS shelf is a way of browsing the
+                    // library, so it is one of the modes rather than a second setting.
+                    chaosShelf = when (appSettings.contentMode) {
+                        dev.cannoli.scorza.settings.ContentMode.PIXEL_NAMES -> dev.cannoli.scorza.ui.screens.ChaosShelf.PIXEL_NAMES
+                        dev.cannoli.scorza.settings.ContentMode.PIXEL_CARDS -> dev.cannoli.scorza.ui.screens.ChaosShelf.PIXEL_CARDS
                         else -> dev.cannoli.scorza.ui.screens.ChaosShelf.OFF
                     },
                     resumableGames = resumableGames,

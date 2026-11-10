@@ -595,7 +595,21 @@ enum class BatteryDisplay {
 
 
 enum class ContentMode {
-    PLATFORMS, COLLECTIONS, FIVE_GAME_HANDHELD;
+    PLATFORMS,
+    COLLECTIONS,
+    FIVE_GAME_HANDHELD,
+
+    /**
+     * The system list as a ChaOS shelf. Two values rather than one, because the two themes
+     * are different things to browse with: [PIXEL_NAMES] is one console at a time, its name
+     * flying together; [PIXEL_CARDS] is the deck, one card large with its neighbours faded to
+     * the sides.
+     */
+    PIXEL_NAMES,
+    PIXEL_CARDS;
+
+    /** Whether this mode browses the library as a ChaOS shelf. */
+    val isPixelShelf: Boolean get() = this == PIXEL_NAMES || this == PIXEL_CARDS;
     companion object {
         fun fromString(value: String?): ContentMode =
             entries.firstOrNull { it.name == value } ?: PLATFORMS

@@ -223,7 +223,7 @@ class SystemListViewModel @Inject constructor(
                         collectionsRepository.appIdsIn(favoritesId).isNotEmpty()
                     if (hasFavorites) items.add(ListItem.FavoritesItem)
                 }
-                if (contentMode == ContentMode.PLATFORMS) {
+                if (contentMode == ContentMode.PLATFORMS || contentMode.isPixelShelf) {
                     val hasTopLevelStandard = collectionsRepository.topLevel().isNotEmpty()
                     if (hasTopLevelStandard) {
                         items.add(ListItem.CollectionsFolder)
@@ -233,7 +233,10 @@ class SystemListViewModel @Inject constructor(
 
             val reorderableItems = mutableListOf<ListItem>()
             when (contentMode) {
-                ContentMode.PLATFORMS -> {
+                // A ChaOS shelf is a way of browsing PLATFORMS, not a different library: the
+                // same consoles in the same order, drawn differently. So it builds the same
+                // list, and every action and every row behaves as it does there.
+                ContentMode.PLATFORMS, ContentMode.PIXEL_NAMES, ContentMode.PIXEL_CARDS -> {
                     groupedPlatforms.filter { it.gameCount > 0 }.sortedBy { it.displayName }.forEach {
                         reorderableItems.add(ListItem.PlatformItem(it))
                     }

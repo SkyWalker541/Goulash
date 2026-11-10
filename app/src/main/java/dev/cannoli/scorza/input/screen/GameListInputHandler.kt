@@ -156,7 +156,7 @@ class GameListInputHandler @Inject constructor(
                 if (!gameListViewModel.exitSubfolder()) {
                     if (gameListViewModel.exitChildCollection { launcherActions.scanResumableGames() }) {
                         // navigated back to parent collection
-                    } else if (settings.contentMode == ContentMode.PLATFORMS
+                    } else if ((settings.contentMode == ContentMode.PLATFORMS || settings.contentMode.isPixelShelf)
                         && glState.isCollection && glState.collectionId != null
                         && !glState.isFavorites) {
                         gameListViewModel.loadCollectionsList(restoreIndex = true)
