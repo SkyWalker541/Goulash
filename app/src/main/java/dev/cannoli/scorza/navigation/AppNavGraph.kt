@@ -537,6 +537,12 @@ fun AppNavGraph(
 
     val statusBarLeftEdge = remember { mutableIntStateOf(Int.MAX_VALUE) }
 
+    // The shelf's pixel names form at the user's Transition Speed, kept beside the theme
+    // because the two are chosen together and read as one look.
+    val chaosPixelSpeed = remember(appSettings.chaosPixelSpeedId) {
+        dev.cannoli.ui.pixel.PixelSpeed.fromId(appSettings.chaosPixelSpeedId)
+    }
+
     val scaleFactor = appSettings.textSize.sp / 22f
     val cannoliTypography = buildCannoliTypography(baseSizeSp = appSettings.textSize.sp, fontFamily = LocalCannoliFont.current)
 
@@ -603,6 +609,13 @@ fun AppNavGraph(
                     mainMenuQuit = appSettings.mainMenuQuit,
                     artWidth = appSettings.artWidth,
                     artScale = appSettings.artScale,
+                    chaosTheme = appSettings.chaosTheme,
+                    chaosPixelSpeed = chaosPixelSpeed,
+                    chaosShelf = when (appSettings.chaosShelfId) {
+                        "names" -> dev.cannoli.scorza.ui.screens.ChaosShelf.PIXEL_NAMES
+                        "cards" -> dev.cannoli.scorza.ui.screens.ChaosShelf.PIXEL_CARDS
+                        else -> dev.cannoli.scorza.ui.screens.ChaosShelf.OFF
+                    },
                     resumableGames = resumableGames,
                     swapPlayResume = appSettings.swapPlayResume,
                     fiveGameHandheld = appSettings.contentMode == dev.cannoli.scorza.settings.ContentMode.FIVE_GAME_HANDHELD,

@@ -21,15 +21,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -50,12 +54,59 @@ import dev.cannoli.ui.components.ScreenTitle
 import dev.cannoli.ui.components.WithoutScreenTitle
 import dev.cannoli.ui.components.footerReservation
 import dev.cannoli.ui.components.listTitleSpacing
+import dev.cannoli.ui.pixel.PixelName
+import dev.cannoli.ui.pixel.PixelShelfItem
+import dev.cannoli.ui.pixel.SystemCards
+import dev.cannoli.ui.pixel.PixelShelfMode
+import dev.cannoli.ui.pixel.PixelShelfView
+import dev.cannoli.ui.pixel.PixelSpeed
+import dev.cannoli.ui.theme.ChaosPalette
+import dev.cannoli.ui.theme.ChaosTheme
+import dev.cannoli.ui.theme.platformAccent
+import dev.cannoli.ui.theme.color
 import dev.cannoli.ui.components.pillItemHeight
 import dev.cannoli.ui.components.screenInsets
 import dev.cannoli.ui.theme.LocalCannoliColors
 import dev.cannoli.ui.theme.Radius
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+/**
+ * Which ChaOS shelf the system list wears, mirroring ChaOS's UI Theme row (`cards.h`).
+ *
+ * OFF is the ordinary Cannoli list, and the default. PIXEL_NAMES is ChaOS's `pixelbig`: one
+ * console at a time, its name flying together large in the middle. PIXEL_CARDS is `pixel`: the
+ * deck, one card large and its neighbours faded to the sides.
+ */
+enum class ChaosShelf { OFF, PIXEL_NAMES, PIXEL_CARDS }
+
+/**
+ * A row of the system list as a shelf item.
+ *
+ * Only a system has an accent of its own; everything else in the list - a folder, a game, a
+ * collection - wears the theme's accent, so the shelf is never colorless.
+ */
+private fun SystemListViewModel.ListItem.toShelfItem(): PixelShelfItem = when (this) {
+    is SystemListViewModel.ListItem.PlatformItem -> PixelShelfItem(
+        name = platform.displayName,
+        tag = platform.tag,
+        accent = platformAccent(platform.tag),
+        meta = if (platform.gameCount > 0) "${platform.gameCount} games" else "",
+    )
+    is SystemListViewModel.ListItem.GameItem -> PixelShelfItem(
+        name = displayName,
+        tag = (item as? dev.cannoli.scorza.model.ListItem.RomItem)?.rom?.platformTag.orEmpty(),
+        accent = platformAccent(
+            (item as? dev.cannoli.scorza.model.ListItem.RomItem)?.rom?.platformTag.orEmpty()
+        ),
+    )
+    is SystemListViewModel.ListItem.CollectionItem -> PixelShelfItem(name = name, tag = "", accent = Color.White)
+    is SystemListViewModel.ListItem.RecentlyPlayedItem -> PixelShelfItem(name = "Recently Played", tag = "", accent = Color.White)
+    is SystemListViewModel.ListItem.FavoritesItem -> PixelShelfItem(name = "Favorites", tag = "FAVORITES", accent = Color.White)
+    is SystemListViewModel.ListItem.CollectionsFolder -> PixelShelfItem(name = "Collections", tag = "", accent = Color.White)
+    is SystemListViewModel.ListItem.ToolsFolder -> PixelShelfItem(name = name, tag = "", accent = Color.White)
+    is SystemListViewModel.ListItem.PortsFolder -> PixelShelfItem(name = name, tag = "", accent = Color.White)
+}
 
 @Composable
 fun SystemListScreen(
@@ -70,6 +121,11 @@ fun SystemListScreen(
     mainMenuQuit: Boolean = false,
     artWidth: Int = 40,
     artScale: ArtScale = ArtScale.FIT,
+    /** The ChaOS theme the colors came from, or "" for none: turns on the pixel names. */
+    chaosTheme: String = "",
+    /** Which ChaOS shelf to draw: a list with a pixel name beside it, or the shelf itself. */
+    chaosShelf: ChaosShelf = ChaosShelf.OFF,
+    chaosPixelSpeed: PixelSpeed = PixelSpeed.NORMAL,
     resumableGames: Set<String> = emptySet(),
     swapPlayResume: Boolean = false,
     fiveGameHandheld: Boolean = false,
@@ -92,6 +148,24 @@ fun SystemListScreen(
     val collectionsLabel = stringResource(R.string.label_collections)
 
     val selectedItem = state.items.getOrNull(state.selectedIndex)
+
+    // The pixel names: a ChaOS theme is chosen AND the cursor is on a system, not on a
+    // folder or a game. Only a system has a name in the pixel letters, because the letters
+    // are consoles' - "Recently Played" is not one, and neither is a game.
+    val chaosThemeOrNull = chaosTheme.takeIf { it.isNotEmpty() }?.let { ChaosTheme.fromId(it) }
+    val pixelSystem = (selectedItem as? ListItem.PlatformItem)?.platform
+    val showPixelName = chaosThemeOrNull != null && pixelSystem != null
+
+    // A name that has just been left keeps drawing while it scatters, so scrolling the shelf
+    // takes one name apart as it builds the next rather than snapping between them. It is
+    // held here rather than in the pixel name so the box it draws in outlives the cursor.
+    var lastPixelName by remember { mutableStateOf<String?>(null) }
+    var lastPixelAccent by remember { mutableStateOf(Color.White) }
+    if (showPixelName) {
+        lastPixelName = pixelSystem?.displayName
+        lastPixelAccent = chaosThemeOrNull?.color ?: Color.White
+    }
+
     val artPath = (selectedItem as? ListItem.GameItem)?.artFile?.absolutePath
     val selectedArt by produceState<ImageBitmap?>(null, artPath) {
         value = if (artPath != null) {
@@ -111,6 +185,7 @@ fun SystemListScreen(
         } else null
     }
     val showArt = state.hasGameItems && selectedArt != null && artWidth > 0
+    val showPixelPane = showPixelName || lastPixelName != null
     val duplicateGameNames = remember(state.items) {
         state.items.asSequence()
             .filterIsInstance<ListItem.GameItem>()
@@ -166,12 +241,35 @@ fun SystemListScreen(
                         color = LocalCannoliColors.current.text
                     )
                 }
+            } else if (chaosShelf != ChaosShelf.OFF) {
+                // A ChaOS shelf: the consoles ARE the screen. The list is still the source of
+                // truth for what is selected, so input, reorder and every action carry on
+                // working; this only changes what is drawn.
+                val shelfItems = remember(state.items) {
+                    state.items.map { it.toShelfItem() }
+                }
+                // The row is the whole screen, so the footer reservation comes out of the
+                // shelf's own height rather than being padded away from it: the name has to
+                // sit in the space that is actually there, not in the space minus a bar.
+                val assets = LocalContext.current.assets
+                PixelShelfView(
+                    items = shelfItems,
+                    selectedIndex = state.selectedIndex,
+                    loops = true,
+                    // The Pixel Cards theme composes each card's name in the pixel letters so
+                    // it can fly in, so it takes the deck with the label left off.
+                    cardFor = { tag -> SystemCards.load(assets, tag, plain = true) },
+                    metaStyle = MaterialTheme.typography.bodyMedium,
+                    mode = if (chaosShelf == ChaosShelf.PIXEL_CARDS) PixelShelfMode.CARDS else PixelShelfMode.NAMES,
+                    speed = chaosPixelSpeed,
+                    modifier = Modifier.fillMaxSize(),
+                )
             } else {
             Row(modifier = Modifier.fillMaxSize()) {
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
-                        .then(if (showArt) Modifier.fillMaxWidth(1f - artWidth / 100f) else Modifier.fillMaxWidth())
+                        .then(if (showArt || showPixelPane) Modifier.fillMaxWidth(1f - artWidth / 100f) else Modifier.fillMaxWidth())
                 ) {
                 List(
                     items = state.items,
@@ -236,6 +334,23 @@ fun SystemListScreen(
                             .padding(start = 16.dp, top = artTopPadding),
                         contentAlignment = Alignment.Center
                     ) {
+                        // A system under the cursor wears its name in the pixel letters,
+                        // assembling as it arrives and scattering when it leaves. Anything
+                        // else in the list shows its art, or nothing.
+                        if (showPixelPane) {
+                            val name = if (showPixelName) pixelSystem!!.displayName else lastPixelName!!
+                            val accent = if (showPixelName) (chaosThemeOrNull?.color ?: Color.White) else lastPixelAccent
+                            PixelName(
+                                name = name,
+                                accent = accent,
+                                speed = chaosPixelSpeed,
+                                focused = showPixelName,
+                                cream = ChaosPalette.CREAM,
+                                cyan = ChaosPalette.CYAN,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            return@Box
+                        }
                         val art = selectedArt ?: return@Box
                         val artModifier: Modifier
                         val artContentScale: ContentScale

@@ -30,5 +30,9 @@ data class IGMHostConfig(
     val timeFormat: TimeFormatMode,
     val buttonLabelSet: ButtonLabelSet,
     val confirmButton: ConfirmButton,
+    /** The ChaOS accent the menu's system name is drawn in, or null for the plain title. */
+    val chaosAccent: androidx.compose.ui.graphics.Color? = null,
+    /** How fast a pixel name forms and scatters. */
+    val chaosPixelSpeed: dev.cannoli.ui.pixel.PixelSpeed = dev.cannoli.ui.pixel.PixelSpeed.NORMAL,
     val keyCodeName: (Int) -> String,
 )

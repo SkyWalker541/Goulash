@@ -21,6 +21,9 @@ data class LaunchArgs(
     val colorTitle: String,
     val colorBackground: String,
     val colorStatusBar: String,
+    /** Which ChaOS theme the colors came from, by id, or "" for none. The in-game menu draws
+     *  a system's name in pixel letters in its accent, so it needs to know. */
+    val chaosTheme: String = "",
     val font: String,
     val debugLogging: Boolean,
     val raUsername: String,
@@ -49,6 +52,7 @@ data class LaunchArgs(
         putExtra(EXTRA_COLOR_TITLE, colorTitle)
         putExtra(EXTRA_COLOR_BACKGROUND, colorBackground)
         putExtra(EXTRA_COLOR_STATUS_BAR, colorStatusBar)
+        putExtra(EXTRA_CHAOS_THEME, chaosTheme)
         putExtra(EXTRA_FONT, font)
         putExtra(EXTRA_DEBUG_LOGGING, debugLogging)
         putExtra(EXTRA_RA_USERNAME, raUsername)
@@ -78,6 +82,7 @@ data class LaunchArgs(
         private const val EXTRA_COLOR_TITLE = "color_title"
         private const val EXTRA_COLOR_BACKGROUND = "color_background"
         private const val EXTRA_COLOR_STATUS_BAR = "color_status_bar"
+        private const val EXTRA_CHAOS_THEME = "chaos_theme"
         private const val EXTRA_FONT = "font"
         private const val EXTRA_DEBUG_LOGGING = "debug_logging"
         private const val EXTRA_RA_USERNAME = "ra_username"
@@ -110,6 +115,7 @@ data class LaunchArgs(
                 colorTitle = intent.getStringExtra(EXTRA_COLOR_TITLE) ?: "#FFFFFF",
                 colorBackground = intent.getStringExtra(EXTRA_COLOR_BACKGROUND) ?: "#000000",
                 colorStatusBar = intent.getStringExtra(EXTRA_COLOR_STATUS_BAR) ?: "#FFFFFF",
+                chaosTheme = intent.getStringExtra(EXTRA_CHAOS_THEME) ?: "",
                 font = intent.getStringExtra(EXTRA_FONT) ?: "default",
                 debugLogging = intent.getBooleanExtra(EXTRA_DEBUG_LOGGING, false),
                 raUsername = intent.getStringExtra(EXTRA_RA_USERNAME) ?: "",

@@ -117,6 +117,14 @@ class SettingsInputHandler @Inject constructor(
                 val startPath = settings.romDirectory.ifEmpty { settings.sdCardRoot }
                 pushDirectoryBrowser(BrowsePurpose.ROM_DIRECTORY, startPath)
             }
+            // Confirming the theme row steps to the next theme, like any other cycled row, so
+            // it works without a left/right habit and without a second screen to back out of.
+            "chaos_theme" -> settingsViewModel.applyChaosTheme(
+                dev.cannoli.ui.theme.ChaosTheme.step(
+                    settingsViewModel.currentChaosTheme() ?: dev.cannoli.ui.theme.ChaosTheme.ORANGE,
+                    1,
+                )
+            )
             "colors" -> nav.push(LauncherScreen.ColorList(colors = settingsViewModel.getColorEntries()))
             "controllers" -> nav.push(LauncherScreen.Controllers())
             "screen_geometry" -> settingsViewModel.enterSubCategory("screen_geometry", dev.cannoli.scorza.R.string.setting_screen_geometry)

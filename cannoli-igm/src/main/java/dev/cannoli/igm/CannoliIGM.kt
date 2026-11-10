@@ -130,6 +130,8 @@ fun CannoliIGM(
                 is IGMScreen.Menu -> {
                     InGameMenu(
                         gameTitle = gameTitle,
+                        chaosAccent = config.chaosAccent,
+                        chaosPixelSpeed = config.chaosPixelSpeed,
                         menuOptions = menuOptions,
                         selectedIndex = screen.selectedIndex,
                         selectedSlot = selectedSlot,

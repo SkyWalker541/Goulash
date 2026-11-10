@@ -224,6 +224,12 @@
     <!-- Theme color: text drawn on the highlighted/selected row. -->
     <string name="setting_color_highlight_text">Highlight Text</string>
     <string name="setting_color_accent">Accent</string>
+    <string name="setting_chaos_theme">Theme</string>
+    <string name="setting_chaos_pixel_speed">Transition Speed</string>
+    <string name="setting_chaos_shelf">System Shelf</string>
+    <string name="chaos_shelf_off">Off</string>
+    <string name="chaos_shelf_names">Pixel Names</string>
+    <string name="chaos_shelf_cards">Pixel Cards</string>
     <string name="setting_color_background">Background</string>
     <string name="setting_color_status_bar">Status Bar</string>
     <!-- Settings row. %s is the emulator app name (e.g. RetroArch). -->

@@ -47,6 +47,7 @@ import dev.cannoli.ui.components.pillItemHeight
 import dev.cannoli.ui.components.pillVerticalPadding
 import dev.cannoli.ui.components.screenInsets
 import dev.cannoli.ui.theme.GrayText
+import dev.cannoli.ui.pixel.PixelName
 import dev.cannoli.ui.theme.PolaroidDark
 import dev.cannoli.ui.theme.PolaroidInactive
 import dev.cannoli.ui.theme.PolaroidSelect
@@ -57,6 +58,9 @@ import dev.cannoli.ui.theme.Spacing
 @Composable
 fun InGameMenu(
     gameTitle: String,
+    /** The ChaOS accent the title is drawn in, or null for the ordinary title. */
+    chaosAccent: androidx.compose.ui.graphics.Color? = null,
+    chaosPixelSpeed: dev.cannoli.ui.pixel.PixelSpeed = dev.cannoli.ui.pixel.PixelSpeed.NORMAL,
     menuOptions: InGameMenuOptions,
     selectedIndex: Int,
     selectedSlot: SaveSlotManager.Slot,
@@ -91,11 +95,29 @@ fun InGameMenu(
                     .fillMaxSize()
                     .padding(bottom = footerReservation())
             ) {
-                ScreenTitle(
-                    text = gameTitle,
-                    fontSize = fontSize,
-                    lineHeight = lineHeight
-                )
+                // A game is played on a console, so its title wears that console's name in
+                // the ChaOS pixel letters when a ChaOS theme is chosen, and the ordinary title
+                // otherwise. The pixel name is already the system, so the row below it says
+                // what you are doing rather than repeating where you are.
+                if (chaosAccent != null) {
+                    PixelName(
+                        name = gameTitle,
+                        accent = chaosAccent,
+                        speed = chaosPixelSpeed,
+                        focused = true,
+                        decorated = false,
+                        cellFraction = 0.72f,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(pillItemHeight(lineHeight, verticalPadding) * 1.6f),
+                    )
+                } else {
+                    ScreenTitle(
+                        text = gameTitle,
+                        fontSize = fontSize,
+                        lineHeight = lineHeight
+                    )
+                }
                 Spacer(modifier = Modifier.height(Spacing.Sm))
                 Row(modifier = Modifier.fillMaxSize()) {
                     Column(

@@ -38,6 +38,9 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.material3)
+
+    // PixelFont is pure Kotlin, so its layout rules are held by plain JVM tests.
+    testImplementation(libs.junit)
 }
 
 // Crowdin can export an untranslated entry as an empty <string></string>. Android treats an

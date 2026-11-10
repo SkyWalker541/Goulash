@@ -336,6 +336,28 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
         get() = jsonRead { optString(KEY_COLOR_STATUS_BAR, "#FFFFFF") }
         set(value) = jsonWrite { put(KEY_COLOR_STATUS_BAR, value) }
 
+    /**
+     * Which ChaOS theme the colors above were last set from, by id, or "" for none.
+     *
+     * Kept so the theme row can say what it is, so the shelf knows which accent to draw a
+     * system's name in, and so the in-game menu can read it in the core's process. It is a
+     * record of the LAST theme chosen, not a live link: the seven colors above stay editable
+     * one at a time, and editing one does not clear this.
+     */
+    var chaosTheme: String
+        get() = jsonRead { optString(KEY_CHAOS_THEME, "") }
+        set(value) = jsonWrite { if (value.isEmpty()) remove(KEY_CHAOS_THEME) else put(KEY_CHAOS_THEME, value) }
+
+    /** How fast a pixel name forms and scatters: a PixelSpeed id. */
+    var chaosPixelSpeed: String
+        get() = jsonRead { optString(KEY_CHAOS_PIXEL_SPEED, "normal") }
+        set(value) = jsonWrite { put(KEY_CHAOS_PIXEL_SPEED, value) }
+
+    /** Which ChaOS shelf the system list wears: off, names beside the list, or the shelf. */
+    var chaosShelf: String
+        get() = jsonRead { optString(KEY_CHAOS_SHELF, "off") }
+        set(value) = jsonWrite { put(KEY_CHAOS_SHELF, value) }
+
     var raUsername: String
         get() = jsonRead { optString(KEY_RA_USERNAME, "") }
         set(value) = jsonWrite { if (value.isEmpty()) remove(KEY_RA_USERNAME) else put(KEY_RA_USERNAME, value) }
@@ -475,6 +497,9 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
         private const val KEY_COLOR_TITLE = "color_title"
         private const val KEY_COLOR_BACKGROUND = "color_background"
         private const val KEY_COLOR_STATUS_BAR = "color_status_bar"
+        private const val KEY_CHAOS_THEME = "chaos_theme"
+        private const val KEY_CHAOS_PIXEL_SPEED = "chaos_pixel_speed"
+        private const val KEY_CHAOS_SHELF = "chaos_shelf"
         private const val KEY_SWAP_PLAY_RESUME = "swap_play_resume"
         private const val KEY_MAIN_MENU_QUIT = "main_menu_quit"
         private const val KEY_KITCHEN_CODE_BYPASS = "kitchen_code_bypass"

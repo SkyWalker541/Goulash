@@ -534,6 +534,7 @@ class LaunchManager(
             colorTitle = settings.colorTitle,
             colorBackground = settings.colorBackground,
             colorStatusBar = settings.colorStatusBar,
+            chaosTheme = settings.chaosTheme,
             font = settings.font,
             debugLogging = settings.loggingSession,
             raUsername = settings.raUsername,

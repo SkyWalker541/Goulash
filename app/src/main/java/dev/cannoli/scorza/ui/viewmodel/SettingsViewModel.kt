@@ -23,6 +23,10 @@ import dev.cannoli.scorza.util.FontNameParser
 import dev.cannoli.scorza.util.sortedNatural
 import dev.cannoli.scorza.di.AppFonts
 import dev.cannoli.ui.BULLET
+import dev.cannoli.ui.pixel.PixelSpeed
+import dev.cannoli.ui.theme.ChaosTheme
+import dev.cannoli.ui.theme.color
+import dev.cannoli.ui.theme.hexColors
 import dev.cannoli.ui.theme.hexToColor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -137,6 +141,12 @@ class SettingsViewModel @Inject constructor(
         val colorTitle: Color = Color.White,
         val colorBackground: Color = Color.Black,
         val colorStatusBar: Color = Color.White,
+        /** Which ChaOS theme the colors were last set from, by id, or "" for none. */
+        val chaosTheme: String = "",
+        /** How fast a pixel name forms and scatters. */
+        val chaosPixelSpeedId: String = "normal",
+        /** Which ChaOS shelf the system list wears. */
+        val chaosShelfId: String = "off",
         val showWifi: Boolean = true,
         val showBluetooth: Boolean = true,
         val showVpn: Boolean = false,
@@ -180,6 +190,9 @@ class SettingsViewModel @Inject constructor(
         colorTitle = hexToColor(settings.colorTitle) ?: Color.White,
         colorBackground = hexToColor(settings.colorBackground) ?: Color.Black,
         colorStatusBar = hexToColor(settings.colorStatusBar) ?: Color.White,
+        chaosTheme = settings.chaosTheme,
+        chaosPixelSpeedId = settings.chaosPixelSpeed,
+        chaosShelfId = settings.chaosShelf,
         showWifi = settings.showWifi,
         showBluetooth = settings.showBluetooth,
         showVpn = settings.showVpn,
@@ -489,6 +502,16 @@ class SettingsViewModel @Inject constructor(
                     else -> next
                 }
             }
+            // A theme is all seven colours at once, so it is not a cycle-and-save like the
+            // rest: applyChaosTheme writes the whole palette and refreshes in one go.
+            "chaos_theme" -> applyChaosTheme(ChaosTheme.step(ChaosTheme.fromId(settings.chaosTheme), direction))
+            "chaos_shelf" -> {
+                val entries = listOf("off", "names", "cards")
+                val cur = entries.indexOf(settings.chaosShelf).coerceAtLeast(0)
+                settings.chaosShelf = entries[((cur + direction) % entries.size + entries.size) % entries.size]
+            }
+            "chaos_pixel_speed" -> settings.chaosPixelSpeed =
+                PixelSpeed.fromId(settings.chaosPixelSpeed).let { PixelSpeed.entries[(it.ordinal + direction + PixelSpeed.entries.size) % PixelSpeed.entries.size] }.id
             "swap_play_resume" -> settings.swapPlayResume = !settings.swapPlayResume
             "content_mode" -> {
                 val entries = ContentMode.entries
@@ -662,6 +685,45 @@ class SettingsViewModel @Inject constructor(
         "color_status_bar" -> settings.colorStatusBar
         else -> "#FFFFFF"
     }
+
+    /**
+     * Write [theme] into all seven color settings at once, and record which theme they came
+     * from.
+     *
+     * One write, not seven passes through `setColor`, because that rebuilds the list seven
+     * times and refreshes the app settings seven times — six of which the user would see as a
+     * flash of half-applied palette. The individual color rows stay editable below the theme
+     * row, which is the point: a theme is a starting point, not a lock.
+     */
+    fun applyChaosTheme(theme: ChaosTheme) {
+        val hex = theme.hexColors()
+        settings.colorHighlight = hex.getValue("color_highlight")
+        settings.colorText = hex.getValue("color_text")
+        settings.colorHighlightText = hex.getValue("color_highlight_text")
+        settings.colorAccent = hex.getValue("color_accent")
+        settings.colorTitle = hex.getValue("color_title")
+        settings.colorBackground = hex.getValue("color_background")
+        settings.colorStatusBar = hex.getValue("color_status_bar")
+        settings.chaosTheme = theme.id
+
+        val catKey = _state.value.activeCategory ?: "colors"
+        _state.update { it.copy(items = buildItemsForCategory(catKey)) }
+        _appSettings.value = readAppSettings()
+    }
+
+    /** The shelf row's words for a stored value. */
+    private fun shelfLabel(id: String): String = when (id) {
+        "names" -> context.getString(R.string.chaos_shelf_names)
+        "cards" -> context.getString(R.string.chaos_shelf_cards)
+        else -> context.getString(R.string.chaos_shelf_off)
+    }
+
+    /** The theme the colors currently came from, or null when they were never set from one. */
+    fun currentChaosTheme(): ChaosTheme? =
+        settings.chaosTheme.takeIf { it.isNotEmpty() }?.let { ChaosTheme.fromId(it) }
+
+    /** The accent a system's pixel name is drawn in: the chosen theme's, or the accent setting. */
+    fun chaosAccent(): Color = currentChaosTheme()?.color ?: hexToColor(settings.colorAccent) ?: Color.White
 
     fun setColor(key: String, hex: String) {
         when (key) {
@@ -860,6 +922,9 @@ class SettingsViewModel @Inject constructor(
             }
         }
         "colors" -> listOf(
+            SettingsItem("chaos_theme", R.string.setting_chaos_theme, valueText = ChaosTheme.fromId(settings.chaosTheme).label, isEditable = true),
+            SettingsItem("chaos_pixel_speed", R.string.setting_chaos_pixel_speed, valueText = PixelSpeed.fromId(settings.chaosPixelSpeed).label, isEditable = true),
+            SettingsItem("chaos_shelf", R.string.setting_chaos_shelf, valueText = shelfLabel(settings.chaosShelf), isEditable = true),
             SettingsItem("color_background", R.string.setting_color_background, valueText = settings.colorBackground.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorBackground)),
             SettingsItem("color_text", R.string.setting_color_text, valueText = settings.colorText.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorText)),
             SettingsItem("color_status_bar", R.string.setting_color_status_bar, valueText = settings.colorStatusBar.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorStatusBar)),

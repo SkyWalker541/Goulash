@@ -22,6 +22,7 @@ import dev.cannoli.igm.BatteryDisplayMode
 import dev.cannoli.igm.CannoliIGM
 import dev.cannoli.igm.GuideFile
 import dev.cannoli.igm.IGMHostConfig
+import dev.cannoli.ui.theme.color
 import dev.cannoli.igm.IGMScreen
 import dev.cannoli.igm.IGMSettingsItem
 import dev.cannoli.igm.IgmGameInfo
@@ -127,6 +128,11 @@ fun LibretroScreen(
                 activeMapping?.glyphStyle ?: dev.cannoli.scorza.input.GlyphStyle.PLUMBER,
             )
         },
+        // Only when a ChaOS theme is chosen: the in-game menu then draws the game's title in
+        // the pixel letters, in that theme's accent.
+        chaosAccent = settings.chaosTheme
+            .takeIf { it.isNotEmpty() }
+            ?.let { dev.cannoli.ui.theme.ChaosTheme.fromId(it).color },
     )
 
     val igmGameInfo = IgmGameInfo(
