@@ -504,6 +504,8 @@ class SettingsViewModel @Inject constructor(
             }
             // A theme is all seven colours at once, so it is not a cycle-and-save like the
             // rest: applyChaosTheme writes the whole palette and refreshes in one go.
+            // applyChaosTheme refreshes the open list itself, so the row's value and every
+            // colour row below it update in the one pass.
             "chaos_theme" -> applyChaosTheme(ChaosTheme.step(ChaosTheme.fromId(settings.chaosTheme), direction))
             "chaos_shelf" -> {
                 val entries = listOf("off", "names", "cards")
@@ -922,15 +924,23 @@ class SettingsViewModel @Inject constructor(
             }
         }
         "colors" -> listOf(
-            SettingsItem("chaos_theme", R.string.setting_chaos_theme, valueText = ChaosTheme.fromId(settings.chaosTheme).label, isEditable = true),
-            SettingsItem("chaos_pixel_speed", R.string.setting_chaos_pixel_speed, valueText = PixelSpeed.fromId(settings.chaosPixelSpeed).label, isEditable = true),
-            SettingsItem("chaos_shelf", R.string.setting_chaos_shelf, valueText = shelfLabel(settings.chaosShelf), isEditable = true),
+            // The ChaOS look is its own screen rather than three more rows at the top of a
+            // list of hex values: a theme is not a colour, and putting it here as one made
+            // Colors the only place to change the shelf's whole appearance.
+            SettingsItem("chaos_look", R.string.setting_chaos_look, valueText = ChaosTheme.fromId(settings.chaosTheme).label, isEditable = true),
             SettingsItem("color_background", R.string.setting_color_background, valueText = settings.colorBackground.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorBackground)),
             SettingsItem("color_text", R.string.setting_color_text, valueText = settings.colorText.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorText)),
             SettingsItem("color_status_bar", R.string.setting_color_status_bar, valueText = settings.colorStatusBar.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorStatusBar)),
             SettingsItem("color_highlight", R.string.setting_color_highlight, valueText = settings.colorHighlight.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorHighlight)),
             SettingsItem("color_highlight_text", R.string.setting_color_highlight_text, valueText = settings.colorHighlightText.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorHighlightText)),
             SettingsItem("color_accent", R.string.setting_color_accent, valueText = settings.colorAccent.uppercase(), isEditable = true, swatchColor = hexToColor(settings.colorAccent))
+        )
+        "chaos_look" -> listOf(
+            SettingsItem("chaos_theme", R.string.setting_chaos_theme, valueText = ChaosTheme.fromId(settings.chaosTheme).label, isEditable = true),
+            SettingsItem("chaos_shelf", R.string.setting_chaos_shelf, valueText = shelfLabel(settings.chaosShelf), isEditable = true),
+            SettingsItem("chaos_pixel_speed", R.string.setting_chaos_pixel_speed, valueText = PixelSpeed.fromId(settings.chaosPixelSpeed).label, isEditable = true),
+            // A note, not a row: it says what the theme does and nothing acts on it.
+            SettingsItem("chaos_hint", R.string.setting_chaos_hint, valueText = context.getString(R.string.chaos_hint_body), isEditable = false)
         )
         "status_bar" -> buildList {
             val batteryRes = when (settings.batteryDisplay) {

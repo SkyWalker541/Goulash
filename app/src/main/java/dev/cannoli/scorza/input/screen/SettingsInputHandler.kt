@@ -125,6 +125,7 @@ class SettingsInputHandler @Inject constructor(
                     1,
                 )
             )
+            "chaos_look" -> settingsViewModel.enterSubCategory("chaos_look", dev.cannoli.scorza.R.string.setting_chaos_look)
             "colors" -> nav.push(LauncherScreen.ColorList(colors = settingsViewModel.getColorEntries()))
             "controllers" -> nav.push(LauncherScreen.Controllers())
             "screen_geometry" -> settingsViewModel.enterSubCategory("screen_geometry", dev.cannoli.scorza.R.string.setting_screen_geometry)
