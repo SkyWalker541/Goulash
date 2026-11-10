@@ -32,11 +32,15 @@ android {
     }
 
     defaultConfig {
-        applicationId = "dev.cannoli.scorza"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        // Goulash is its own launcher, not a build of Cannoli, so it carries its own
+        // identity: a different applicationId means it installs alongside Cannoli rather
+        // than fighting it for the signature, and its own version line means the two can
+        // never be confused in a bug report.
+        applicationId = "dev.goulash.launcher"
+        versionCode = 200000099
+        versionName = "2.0.0-chaos.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
