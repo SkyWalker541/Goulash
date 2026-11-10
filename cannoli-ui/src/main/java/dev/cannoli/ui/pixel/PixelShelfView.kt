@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
@@ -84,32 +86,32 @@ fun PixelShelfView(
     val shelf = remember(items.size, loops) { PixelShelf(items.size, loops) }
     var frame by remember { mutableLongStateOf(0L) }
 
+    // Whether the shelf has been placed on its first index yet: the first pass jumps, every
+    // one after it slides.
+    var primed by remember { mutableStateOf(false) }
+
     // Each card's own name, 0 scattered to 1 formed. A card eases toward 1 while it is the
     // cursor and toward 0 while it is not, which is the whole transition: the row can move
     // fast and the names still take their own time, exactly as `pn_card` gives each one its
     // own t.
     val cardFormed = remember(items.size) { androidx.compose.runtime.mutableStateMapOf<Int, Float>() }
 
-    // One clock for the row's glide, running only while the row moves: a shelf at rest must
-    // not keep a handheld awake.
-    LaunchedEffect(shelf) {
-        shelf.reset(selectedIndex)
-        var now = withFrameMillis { it }
-        frame = now
-        while (true) {
-            now = withFrameMillis { it }
-            val moving = shelf.tick(now)
-            frame = now
-            if (!moving) break
-        }
-    }
-
     // A new selection from anywhere — a press, a restore, a page jump — eases the row to it.
     LaunchedEffect(selectedIndex, items.size) {
-        val dir = when {
+        // `dir` is 0 on the first pass, so the shelf lands on the restored index instead of
+        // sliding to it from 0 — which is what opened the screen with a carousel turning by
+        // itself.
+        val first = !primed
+        val dir = if (first) 0 else when {
             selectedIndex > shelf.cursor -> 1
             selectedIndex < shelf.cursor -> -1
             else -> 0
+        }
+        if (first) {
+            shelf.reset(selectedIndex)
+            primed = true
+            frame = System.currentTimeMillis()
+            return@LaunchedEffect
         }
         shelf.stepTo(selectedIndex, dir, System.currentTimeMillis())
         var now = withFrameMillis { it }
@@ -120,12 +122,21 @@ fun PixelShelfView(
         frame = now
     }
 
-    // The names' clock. It runs while any card's name is between 0 and 1, so a settled shelf
-    // still sleeps.
-    LaunchedEffect(selectedIndex, items.size, mode) {
+
+    // The names' clock: every card's name eases toward 1 while it is the cursor and toward 0
+    // while it is not, on the same frame clock as the row.
+    //
+    // SEEDED from the selection, not from zero. A press changes `selectedIndex`, which cancels
+    // and restarts this effect — and starting every card at 0 meant the name you had just
+    // moved TO began scattered and the one you left vanished, so the row looked like it had
+    // lost its names rather than turned over. Seed the card you are on at 1 and only the
+    // ones you are moving between animate.
+    LaunchedEffect(selectedIndex, items.size, mode, speed) {
         if (mode != PixelShelfMode.CARDS) return@LaunchedEffect
+        if (cardFormed.isEmpty()) {
+            for (i in items.indices) cardFormed[i] = if (i == selectedIndex) 1f else 0f
+        }
         val step = 1f / speed.formMs.toFloat()
-        var now = withFrameMillis { it }
         while (true) {
             val dt = 16f
             var moving = false
@@ -140,7 +151,7 @@ fun PixelShelfView(
                 }
             }
             if (!moving) break
-            now = withFrameMillis { it }
+            withFrameMillis { it }
         }
     }
 
@@ -156,6 +167,26 @@ fun PixelShelfView(
         val cardH = h * PixelShelf.CENTRE_SIZE
         val cardW = cardH * SystemCards.CARD_ASPECT
         val stepPx = cardW * PixelShelf.STEP
+
+        // ONE cell size for the whole shelf, from the biggest name on it: the largest name
+        // fits its card and every shorter one leaves more air. Recomputed only when the
+        // names or the card's size change, so stepping along the row never resizes anything.
+        val shelfCell = remember(items, cardW.toInt(), cardH.toInt()) {
+            // The names as the shelf can actually set them: a name too long for the letters
+            // is drawn as its first word, so that is what the size is measured against.
+            val (cols, rows) = PixelFont.biggestBlock(items.map { PixelFont.displayName(it.name) })
+            val panelH = cardH * (587f / 820f)
+            val byWidth = cardW * 0.90f / (cols + PixelScatter.SPARKS_MAX_DX)
+            val byHeight = panelH * 0.94f / rows.coerceAtLeast(1)
+            minOf(byWidth, byHeight).toInt().coerceAtLeast(2)
+        }
+
+        // Snapshot reads, so a change to either redraws the row: the glide clock and every
+        // card's name clock.
+        val formedSnapshot = androidx.compose.runtime.remember(cardFormed) {
+            androidx.compose.runtime.snapshotFlow { cardFormed.toMap() }
+        }
+        val formedNow by formedSnapshot.collectAsState(initial = cardFormed.toMap())
 
         Canvas(Modifier.fillMaxSize()) {
             @Suppress("UNUSED_EXPRESSION") frame
@@ -199,7 +230,8 @@ fun PixelShelfView(
                     // you leave scatters as the row moves and the one you land on
                     // assembles, which is `pn_card`. The card's own t is eased by
                     // [cardFormed], a frame clock shared by the row.
-                    t = cardFormed[slot.item] ?: 0f,
+                    t = formedNow[slot.item] ?: 0f,
+                    cell = shelfCell,
                 )
             }
         }
@@ -249,11 +281,11 @@ fun PixelShelfView(
  * rejected for exactly that reason — NES grew to twice the size of Neo Geo Pocket Color and
  * the row stopped reading as one deck.
  *
- * The size is therefore set from the WORST case a name can present, which is the font's
- * maximum: [PixelFont.LINE_MAX] letters a line, [PixelFont.LINES_MAX] lines, plus the
- * escaping pixels beside the last column. That is the size at which any name at all fits its
- * card, and every shorter name simply leaves more air. [PixelFont.uniformCell] is the same
- * rule the big centred name uses.
+ * The size is set from the WORST NAME ON THIS SHELF, not from the font's theoretical maximum:
+ * one size, chosen so the biggest name in the list fits its card, and every shorter name
+ * leaves more air. Sizing from the font's maximum instead left a row of short names small to
+ * make room for a name that was not on it — and a name longer than any name in the list could
+ * still overrun the card, which is what pushed some of them off the edge.
  *
  * Only the card under the cursor has its name formed; a neighbour's is empty. That is the
  * transition: the name you left scatters to nothing as the row moves, and the one you land on
@@ -270,28 +302,22 @@ private fun DrawScope.drawCardName(
     cream: Color,
     cyan: Color,
     t: Float,
+    cell: Int,
 ) {
-    if (t <= 0f || cardW <= 0f || cardH <= 0f) return
-    val piece = PixelScatter.piece(name)
+    if (t <= 0f || cardW <= 0f || cardH <= 0f || cell < 2) return
+    // The name as the letters can set it: a name too long for nine-wide glyphs is drawn as
+    // its first word, which is what the cell size was measured against.
+    val piece = PixelScatter.piece(PixelFont.displayName(name))
     if (piece.count == 0) return
     // The panel above the rule, as fractions of the card: the deck puts the rule at 587 of
     // 820, and the panel is everything above it.
     val panelH = cardH * (587f / 820f)
     val panelTop = cy - cardH / 2f
-
-    // ONE cell size, from the worst name the font can set rather than from this one: a name
-    // never changes size as you step along the row. The escaping pixels reach past the last
-    // column, so the widest line is [PixelFont.LINE_MAX] letters plus that reach.
-    val widestCols = PixelFont.LINE_MAX * 6 - 1 + PixelScatter.SPARKS_MAX_DX
-    val byWidth = cardW * 0.90f / widestCols
-    val byHeight = panelH * 0.94f / (PixelFont.LINES_MAX * (PixelFont.GLYPH_H + PixelFont.LINE_GAP))
-    val cell = minOf(byWidth, byHeight).toInt().coerceAtLeast(2)
     val ox = cx - piece.layout.cols * cell / 2f
-    // Centred in the panel, and if a name runs taller than it, the top of the block is pulled
-    // back inside rather than the name being shrunk: the size belongs to the shelf, not to
-    // the name.
+    // Centred in the panel. The size is the shelf's, so a name never changes size; one that
+    // runs past the panel is centred anyway rather than pushed down onto the rule.
     val blockH = piece.layout.rows * cell
-    val oy = (panelTop + (panelH - blockH) / 2f).coerceAtLeast(panelTop)
+    val oy = panelTop + (panelH - blockH) / 2f
 
     drawPiece(
         scope = this,

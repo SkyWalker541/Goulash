@@ -254,6 +254,9 @@ fun SystemListScreen(
                 val assets = LocalContext.current.assets
                 PixelShelfView(
                     items = shelfItems,
+                    // The shelf's own cursor. `state.selectedIndex` is what a press acts on and
+                    // is kept in step with it, but the row must read the shelf's position or
+                    // the two drift while a glide is still running.
                     selectedIndex = state.selectedIndex,
                     loops = true,
                     // The Pixel Cards theme composes each card's name in the pixel letters so

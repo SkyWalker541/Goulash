@@ -87,6 +87,28 @@ class PixelFontTest {
     }
 
     @Test
+    fun `a name too long for the letters is drawn as its first word`() {
+        // Three lines of up to thirteen columns is twice the width of anything else on a
+        // shelf, and the one name that will not fit a card at the size the rest want.
+        assertEquals("Super", PixelFont.displayName("Super Nintendo Entertainment System"))
+        assertEquals("Nintendo", PixelFont.displayName("Nintendo Entertainment System"))
+    }
+
+    @Test
+    fun `a name that fits is left alone`() {
+        // These set to two lines of at most five columns a line, so nothing about them is
+        // too wide for the letters and none of them is touched.
+        // The letters break at spaces, so a name is only "too wide" when one of its LINES is:
+        // every name here sets to lines well under the limit, whatever its length.
+        for (n in listOf("NES", "Game Boy", "Game Boy Advance", "Neo Geo Pocket Color", "Master System")) {
+            val ls = PixelFont.lines(n).first
+            assertTrue("$n sets to ${ls.size} lines", ls.size <= PixelFont.LINES_MAX)
+            assertTrue("$n longest line is ${ls.maxOfOrNull { it.length }} chars", ls.maxOfOrNull { it.length }!! <= PixelFont.LINE_MAX)
+            assertEquals(n, PixelFont.displayName(n))
+        }
+    }
+
+    @Test
     fun `the cell size is one number for every name`() {
         val a = PixelFont.uniformCell(400)
         val b = PixelFont.uniformCell(400)

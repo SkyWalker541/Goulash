@@ -39,8 +39,8 @@ android {
         // than fighting it for the signature, and its own version line means the two can
         // never be confused in a bug report.
         applicationId = "dev.goulash.launcher"
-        versionCode = 200000101
-        versionName = "2.0.0-chaos.3"
+        versionCode = 200000102
+        versionName = "2.0.0-chaos.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

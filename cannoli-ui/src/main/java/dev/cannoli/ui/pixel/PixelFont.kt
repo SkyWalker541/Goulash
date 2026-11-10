@@ -86,6 +86,9 @@ object PixelFont {
     /** The glyph for [c], uppercased, or null when the font has none. */
     fun glyph(c: Char): Array<String>? = GLYPHS[c.uppercaseChar()]
 
+    /** The widest line a name sets to, in columns: the width of its block. */
+    fun blockWidth(name: String): Int = layout(name).cols
+
     /** Whether a character has a glyph (anything else is drawn as a space). */
     fun has(c: Char): Boolean = glyph(c) != null
 
@@ -188,6 +191,49 @@ object PixelFont {
             }
         }
         return Layout(pixels = pixels, cols = widest, rows = rows, lines = lines, accentFrom = accentFrom)
+    }
+
+    /**
+     * A name short enough to set in the pixel letters, or its own first word.
+     *
+     * The letters are nine wide, so "Super Nintendo Entertainment System" cannot be set at all:
+     * it breaks into three lines whose longest is thirteen columns — half again as wide as
+     * anything else on a shelf, and the one name that will not fit a card at the size the rest
+     * of them want. The console's everyday name is its first word, which is also what somebody
+     * says out loud: SNES's is Super, Nintendo Entertainment System's is Nintendo.
+     *
+     * The test is the block's COLUMNS, not its length, because the letters break at spaces —
+     * "Game Boy" is eight characters and only five columns a line, where a name that has to
+     * split mid-word runs to thirteen.
+     */
+    fun displayName(name: String, maxChars: Int = LINE_MAX): String {
+        // Judged by the LINES, not by the name's length: the letters break at spaces, so
+        // "Game Boy" is eight characters and sets as two five-character lines. A name is only
+        // cut when one of its lines is longer than the letters should ever run — which is the
+        // case that produced SUPER / NINTENDO / ENTERTAINMENT / SYSTEM.
+        val ls = lines(name).first
+        if (ls.isEmpty()) return name
+        if (ls.size <= LINES_MAX && ls.all { it.length <= maxChars }) return name
+        return name.substringBefore(' ')
+    }
+
+    /**
+     * The biggest block a LIST of names presents: the widest columns and the tallest rows
+     * across every name in it.
+     *
+     * This is what a shelf sizes from, so that every name on it is set at one size and that
+     * size is the largest the shelf's own names allow — not the largest the font can hold,
+     * which leaves a row of short names small to make room for a name that is not there.
+     */
+    fun biggestBlock(names: List<String>): Pair<Int, Int> {
+        var cols = 0
+        var rows = 0
+        for (n in names) {
+            val l = layout(n)
+            if (l.cols > cols) cols = l.cols
+            if (l.rows > rows) rows = l.rows
+        }
+        return cols to rows
     }
 
     /**

@@ -254,8 +254,12 @@ class SystemListViewModel @Inject constructor(
                 if (toolCount > 0) reorderableItems.add(ListItem.ToolsFolder(toolsName, toolCount))
             }
             if (reorderableItems.isNotEmpty()) {
-                val ordered = applyCustomOrder(reorderableItems, romsRepository.knownPlatformTags())
-                items.addAll(ordered)
+                // NOT applyCustomOrder, which applies `knownPlatformTags()` — a set of tags
+                // straight from the database with no ordering anyone chose. Using that as a
+                // display order is what made the shelf appear to rotate at random. A shelf is
+                // alphabetical by its own name, and the two folders that have no console name
+                // sort to the end.
+                items.addAll(reorderableItems.sortedBy { it.sortName() })
             }
 
             val current = _state.value
@@ -270,7 +274,12 @@ class SystemListViewModel @Inject constructor(
             val canRestore = (restored != null || items.size == prevItemCount) && prevItemCount > 0
             val (safeIndex, scrollTo) = if (canRestore && items.isNotEmpty()) {
                 val maxIdx = items.lastIndex
-                val remapped = prevSelectedItem?.let { items.indexOf(it).takeIf { idx -> idx >= 0 } }
+                // By TAG, not by ListItem equality. A Platform carries its gameCount, so the
+                // PlatformItem that was selected before the scan no longer equals the one
+                // built after it — indexOf missed every time the count had changed, and the
+                // shelf fell back to whatever index happened to be current. That is why
+                // coming back from a system landed on a different one.
+                val remapped = prevSelectedItem?.let { prev -> items.indexOfFirst { it.sameAs(prev) }.takeIf { idx -> idx >= 0 } }
                 val idx = when {
                     remapped != null -> remapped
                     current.selectedIndex in items.indices -> current.selectedIndex
@@ -428,6 +437,15 @@ class SystemListViewModel @Inject constructor(
 
     private fun ListItem.isReorderable(): Boolean = this is ListItem.PlatformItem || this is ListItem.ToolsFolder || this is ListItem.PortsFolder || this is ListItem.CollectionItem || this is ListItem.GameItem
 
+    /** What a row is called, for sorting a shelf. Folders sort after consoles. */
+    private fun ListItem.sortName(): String = when (this) {
+        is ListItem.PlatformItem -> platform.displayName.uppercase()
+        is ListItem.CollectionItem -> name.uppercase()
+        is ListItem.ToolsFolder -> "\uFFFF$name"
+        is ListItem.PortsFolder -> "\uFFFF$name"
+        else -> "\uFFFF"
+    }
+
     private fun ListItem.orderTag(): String? = when (this) {
         is ListItem.PlatformItem -> platform.tag
         is ListItem.CollectionItem -> name
@@ -435,6 +453,19 @@ class SystemListViewModel @Inject constructor(
         is ListItem.PortsFolder -> TAG_PORTS
         is ListItem.GameItem -> null
         else -> null
+    }
+
+    /**
+     * Whether two rows are the same thing, whatever else changed about them.
+     *
+     * A Platform carries its game count, and a scan rebuilds every one of them, so equality is
+     * the wrong question for "which row was I on" — the tag is the answer.
+     */
+    private fun ListItem.sameAs(other: ListItem): Boolean = when {
+        this is ListItem.PlatformItem && other is ListItem.PlatformItem -> platform.tag == other.platform.tag
+        this is ListItem.CollectionItem && other is ListItem.CollectionItem -> id == other.id
+        this is ListItem.GameItem && other is ListItem.GameItem -> recentKey == other.recentKey
+        else -> this::class == other::class
     }
 
     private fun applyCustomOrder(items: List<ListItem>, order: List<String>): List<ListItem> {
